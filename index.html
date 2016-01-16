@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+  <head>
+    <meta charset="utf-8">
+    <script type="text/javascript" src="node_modules/grid-list/src/gridList.js"></script>
+    <script type="text/javascript" src="dist/grid-list-dom.js"></script>
+
+    <style>
+
+      html, body, .grid {
+        width: 100%;
+        height: 100%
+      }
+
+      .grid-item {
+        border: 1px solid black;
+        background-color: #ccc;
+      }
+
+      .grid-cell {
+        border: 1px dashed red;
+      }
+
+      [draggable] {
+        user-select: none;
+      }
+
+      .grid-cell.over {
+  border: 2px dashed #0F0;
+}
+
+    </style>
+
+  </head>
+
+  <body>
+    <div class="grid" id="grid">
+
+    <script type="text/javascript">
+      (function (window) {
+        'use strict'
+
+        const document = window.document
+        const gridElement = document.getElementById('grid')
+        const grid = new window.GridListDOM(gridElement, {
+          // direction: 'horizontal',
+          direction: 'vertical',
+          lanes: 6
+        })
+
+        const createItem = (content) => {
+          const element = document.createElement('div')
+          element.classList.add('grid-item')
+          element.textContent = content
+          return element
+        }
+
+        grid.addItem(createItem('item1'), {w: 2, h: 3, x: 1, y: 0})
+        grid.addItem(createItem('item2'), {w: 1, h: 2, x: 0, y: 0})
+        grid.addItem(createItem('item3'), {w: 4, h: 2, x: 0, y: 3})
+      })(window)
+    </script>
+  </body>
