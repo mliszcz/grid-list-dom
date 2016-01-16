@@ -54,7 +54,7 @@ class GridListDOM {
     Object.assign(this.options, newOptions)
     this.setRootCSS()
     this.resizeGrid()
-    this.reconstructCells()
+    this.reconstructTargetCells()
   }
 
   resizeGrid () {
@@ -70,7 +70,7 @@ class GridListDOM {
     })
   }
 
-  reconstructCells () {
+  reconstructTargetCells () {
     // return;
     this.dom.cells.forEach(cell => this.dom.root.removeChild(cell))
     this.dom.cells = []
@@ -80,7 +80,7 @@ class GridListDOM {
       for (let irow = 0; irow < column.length; ++irow) {
         const [col, row] = this.vertical ? [irow, icol] : [icol, irow]
         const cell = window.document.createElement('div')
-        cell.draggable = true
+
         cell.classList.add('grid-cell')
         cell.gridListPos = { col, row }
         Object.assign(cell.style, {
@@ -89,11 +89,30 @@ class GridListDOM {
           gridRow: `row ${row+1} / span gutter 1`,
           zIndex: Z_IDX_CELL_BACK
         })
-        this.makeCellTarget(cell)
+
+        cell.addEventListener('dragenter',
+                              (e) => this.onTargetCellDragEnter(e),
+                              false)
+
+        cell.ondrop = function handleDrop(e) {
+          if (e.stopPropagation) {
+            e.stopPropagation(); // stops the browser from redirecting.
+          }
+          return true;
+        }
+
+
         this.dom.root.appendChild(cell)
         this.dom.cells.push(cell)
       }
     }
+  }
+
+  createTargetCell (col, row) {
+    const cell = window.document.createElement('div')
+    cell.classList.add('grid-cell')
+    cell.gridListPos = { col, row }
+    return cell
   }
 
   cellsToFront () {
@@ -105,9 +124,7 @@ class GridListDOM {
   }
 
   setCellLayerZIndex (zIndex) {
-    this.dom.cells.forEach(cell => {
-      cell.style.zIndex = zIndex
-    })
+    this.dom.cells.forEach(cell => cell.style.zIndex = zIndex)
   }
 
   /**
@@ -117,7 +134,7 @@ class GridListDOM {
   addItem(element, size) {
 
     this.addItem2(element, size)
-    this.reconstructCells()
+    this.reconstructTargetCells()
   }
 
   addItem2 (element, size) {
@@ -142,96 +159,31 @@ class GridListDOM {
 
   }
 
-  // removeItem (element) {
-  //   const gridList = this.gridList
-  //   const gridListIdx = gridList.items.findIndex(e => e.element === element)
-  //   gridList.items.splice(gridListIdx, 1)
-  //   this.dom.items.splice(this.dom.items.indexOf(element), 1)
-  //   this.dom.root.removeChild(element)
-  // }
+  onTargetCellDragEnter (event) {
 
-  makeCellTarget (element) {
+    const { col, row } = event.target.gridListPos
+    const item = this.currentDrag
 
-const that = this
+    console.log(`MOVE FROM ${item.x}, ${item.y} to ${col}, ${row}`)
+    this.gridList.moveItemToPosition(item, [col, row])
 
-    function handleDragOver(e) {
-  if (e.preventDefault) {
-    e.preventDefault(); // Necessary. Allows us to drop.
-  }
-
-  e.dataTransfer.dropEffect = 'move';  // See the section on the DataTransfer object.
-
-  return false;
-}
-
-function handleDragEnter(e) {
-  // console.log('dragenter', this)
-  // this / e.target is the current hover target.
-  this.classList.add('over');
-
-
-  const { col, row } = this.gridListPos
-
-  // const item = e.dataTransfer.getData('text/html')
-  const item = that.currentDrag
-
-  // item.x = col
-  // item.y = row
-
-  console.log(`MOVE FROM ${item.x}, ${item.y} to ${col}, ${row}`)
-  that.gridList.moveItemToPosition(item, [col, row])
-
-  that.gridList.items.forEach(item => {
-    Object.assign(item.element.style, {
-      gridColumn: `col ${item.x+1} / span gutter ${item.w}`,
-      gridRow: `row ${item.y+1} / span gutter ${item.h}`,
-      zIndex: Z_IDX_ITEM
+    this.gridList.items.forEach(item => {
+      Object.assign(item.element.style, {
+        gridColumn: `col ${item.x+1} / span gutter ${item.w}`,
+        gridRow: `row ${item.y+1} / span gutter ${item.h}`,
+        zIndex: Z_IDX_ITEM
+      })
     })
-
-  })
-
-  // that.gridList.items.push(item)
-
-  console.log('ITEM', item)
-
-  // Object.assign(item.element.style, {
-  //   gridColumn: `col ${item.x+1} / span gutter ${item.w}`,
-  //   gridRow: `row ${item.y+1} / span gutter ${item.h}`,
-  //   zIndex: Z_IDX_ITEM
-  // })
-
-  // that.resizeGrid()
-
-  // console.log(that.gridList)
-
-
-
-}
-
-function handleDragLeave(e) {
-  this.classList.remove('over');  // this / e.target is previous target element.
-
-  // that.gridList.items.splice(that.gridList.items.indexOf(that.currentDrag), 1)
-}
-
-
-function handleDrop(e) {
-  // this / e.target is current target element.
-
-  if (e.stopPropagation) {
-    e.stopPropagation(); // stops the browser from redirecting.
   }
 
-  // See the section on the DataTransfer object.
+  onItemDragStart (event) {
 
-  return false;
-}
+    event.target.style.opacity = '0.7'
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/html', '') // dummy payload
 
-element.addEventListener('dragover', handleDragOver, false);
-element.addEventListener('dragenter', handleDragEnter, false);
-element.addEventListener('dragleave', handleDragLeave, false);
-element.addEventListener('drop', handleDrop, false);
-
+    this.currentDrag = this.gridList.items.find(e => e.element === event.target)
+    this.cellsToFront()
   }
 
   makeDraggable (element) {
@@ -241,44 +193,27 @@ element.addEventListener('drop', handleDrop, false);
 
     const that = this
 
-    function handleDragStart(e) {
-      that.cellsToFront()
-
-
-      const item = that.gridList.items.find(e => e.element === this)
-      // const gridListIdx = that.gridList.items.findIndex(e => e.element === this)
-      // that.gridList.items.splice(gridListIdx, 1)
-      //
-      // that.resizeGrid()
-
-
-      // console.log('dragstert', e)
-
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setData('text/html', item);
-      that.currentDrag = item
-      // e.dataTransfer.setData('text/html', 'junk');
-      this.style.opacity = '0.4';  // this / e.target is the source node.
-    }
+    // function handleDragStart(e) {
+    //   that.cellsToFront()
+    //
+    //
+    //   const item = that.gridList.items.find(e => e.element === this)
+    //
+    //   e.dataTransfer.effectAllowed = 'move';
+    //   e.dataTransfer.setData('text/html', item);
+    //   that.currentDrag = item
+    //   // e.dataTransfer.setData('text/html', 'junk');
+    //   this.style.opacity = '0.4';  // this / e.target is the source node.
+    // }
 
     function handleDragEnd (e) {
       this.style.opacity = '1.0'
       that.cellsToBack();
-
-      [].forEach.call(that.dom.cells, function (col) {
-        col.classList.remove('over');
-      });
     }
 
 
-    element.addEventListener('dragstart', handleDragStart, false);
+    element.addEventListener('dragstart', (e) => this.onItemDragStart(e), false);
     element.addEventListener('dragend', handleDragEnd, false);
-
-
-    // element.ondragover = handleDragOver
-    // element.ondragenter = handleDragEnter
-    // element.ondragleave = handleDragLeave
-
   }
 
 }
