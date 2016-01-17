@@ -19,10 +19,6 @@
         background-color: #ccc;
       }
 
-      .grid-cell {
-        border: 1px dashed red;
-      }
-
       [draggable] {
         user-select: none;
       }
@@ -35,9 +31,13 @@
         cursor: pointer;
       }
 
-      .grid-cell.over {
-  border: 2px dashed #0F0;
-}
+      .gld--grid-cell {
+        border: 1px dashed red;
+      }
+
+      .gld--grid-cell.gld--grid-cell-over {
+        border: 2px dashed #0F0;
+      }
 
     </style>
 
@@ -53,8 +53,8 @@
         const document = window.document
         const gridElement = document.getElementById('grid')
         const grid = new window.GridListDOM(gridElement, {
-          direction: 'horizontal',
-          // direction: 'vertical',
+          // direction: 'horizontal',
+          direction: 'vertical',
           lanes: 6
         })
 
