@@ -98,6 +98,10 @@ class GridListDOM {
                               (e) => this.onTargetCellDragOver(e),
                               false)
 
+        cell.ondragstart = (e) => {
+          console.log('CELL DRAGSTART1!!!!!!')
+        }
+
         this.dom.root.appendChild(cell)
         this.dom.cells.push(cell)
       }
@@ -179,6 +183,9 @@ class GridListDOM {
   }
 
   onTargetCellDragOver (event) {
+
+    console.log('DRAG OVER AREA')
+
     // prevents feedback-image returning to the origin
     if (event.preventDefault) {
       event.preventDefault()
@@ -195,8 +202,12 @@ class GridListDOM {
     console.log('FINSDIN', event.target)
 
     this.currentDrag = this.gridList.items.find(e => e.element === event.target)
-    // console.log('CD', this.currentDrag)
-    this.cellsToFront()
+
+    setTimeout(() => {
+      // timeout required by Chrome
+      this.cellsToFront()
+    }, 0)
+
   }
 
   onItemDragEnd (event) {
@@ -219,6 +230,10 @@ class GridListDOM {
         target: element,
         dataTransfer: e.dataTransfer
       })
+
+      // e.preventDefault()
+
+      // return false
       // console.log('RETURNING')
     }
 
