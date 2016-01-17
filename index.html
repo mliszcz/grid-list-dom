@@ -31,6 +31,10 @@
         grid-gap: 0px;
       }
 
+      .grid-item-handle {
+        cursor: pointer;
+      }
+
       .grid-cell.over {
   border: 2px dashed #0F0;
 }
@@ -57,7 +61,13 @@
         const createItem = (content) => {
           const element = document.createElement('div')
           element.classList.add('grid-item')
-          element.textContent = content
+          // element.textContent = content
+          const handle = document.createElement('div')
+          handle.classList.add('grid-item-handle')
+          handle.textContent = content
+          handle.style.backgroundColor = '#8F8'
+          element.appendChild(handle)
+          element.appendChild(document.createTextNode(content))
           return element
         }
 

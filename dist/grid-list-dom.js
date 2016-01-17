@@ -94,13 +94,9 @@ class GridListDOM {
                               (e) => this.onTargetCellDragEnter(e),
                               false)
 
-        cell.ondrop = function handleDrop(e) {
-          if (e.stopPropagation) {
-            e.stopPropagation(); // stops the browser from redirecting.
-          }
-          return true;
-        }
-
+        cell.addEventListener('dragover',
+                              (e) => this.onTargetCellDragOver(e),
+                              false)
 
         this.dom.root.appendChild(cell)
         this.dom.cells.push(cell)
@@ -161,8 +157,14 @@ class GridListDOM {
 
   onTargetCellDragEnter (event) {
 
+    console.log('ENTER DRAG AREA')
+
     const { col, row } = event.target.gridListPos
     const item = this.currentDrag
+
+    if (!item) {
+      return
+    }
 
     console.log(`MOVE FROM ${item.x}, ${item.y} to ${col}, ${row}`)
     this.gridList.moveItemToPosition(item, [col, row])
@@ -176,44 +178,71 @@ class GridListDOM {
     })
   }
 
+  onTargetCellDragOver (event) {
+    // prevents feedback-image returning to the origin
+    if (event.preventDefault) {
+      event.preventDefault()
+    }
+    event.dataTransfer.dropEffect = 'move'
+  }
+
   onItemDragStart (event) {
 
     event.target.style.opacity = '0.7'
     event.dataTransfer.effectAllowed = 'move'
     event.dataTransfer.setData('text/html', '') // dummy payload
 
+    console.log('FINSDIN', event.target)
+
     this.currentDrag = this.gridList.items.find(e => e.element === event.target)
+    // console.log('CD', this.currentDrag)
     this.cellsToFront()
+  }
+
+  onItemDragEnd (event) {
+
   }
 
   makeDraggable (element) {
     //
     // element.setAttribute('draggable', 'true')
-    element.draggable = true
+    // element.draggable = true
+
+    element.childNodes[0].draggable = 'true'
+    element.childNodes[0].ondragstart = (e) => {
+      console.log('HANDLE RECEIVED', e)
+      // element.draggable = true
+      // // e.preventDefault()
+      // console.log('FIREF DEOM CHILD')
+      e.dataTransfer.setDragImage(element, 0, 0)
+      this.onItemDragStart({
+        target: element,
+        dataTransfer: e.dataTransfer
+      })
+      // console.log('RETURNING')
+    }
 
     const that = this
 
-    // function handleDragStart(e) {
-    //   that.cellsToFront()
-    //
-    //
-    //   const item = that.gridList.items.find(e => e.element === this)
-    //
-    //   e.dataTransfer.effectAllowed = 'move';
-    //   e.dataTransfer.setData('text/html', item);
-    //   that.currentDrag = item
-    //   // e.dataTransfer.setData('text/html', 'junk');
-    //   this.style.opacity = '0.4';  // this / e.target is the source node.
-    // }
 
     function handleDragEnd (e) {
+      console.log('DRAGEND')
       this.style.opacity = '1.0'
       that.cellsToBack();
     }
 
+    element.childNodes[0].ondragend = (e) => {
+      console.log('DRAGEND')
+      element.style.opacity = '1.0'
+      this.cellsToBack()
+    }
 
-    element.addEventListener('dragstart', (e) => this.onItemDragStart(e), false);
-    element.addEventListener('dragend', handleDragEnd, false);
+
+    // element.addEventListener('dragstart', (e) => {
+    //   console.log('ROOT RECEIVED')
+    //   this.onItemDragStart(e)
+    // }, false);
+    // element.addEventListener('dragend', handleDragEnd, false);
   }
 
 }
