@@ -7,191 +7,292 @@ const Z_IDX_CELL_BACK = 10
 
 const CSS_CLASS_CELL = 'gld--grid-cell'
 const CSS_CLASS_CELL_OVER = 'gld--grid-cell-over'
+const CSS_CLASS_ITEM_DRAGGING = 'gld--grid-item-dragging'
+
+const CSS_PROP_SIZE_CELL = '--gld--size-cell'
+const CSS_PROP_SIZE_GAP = '--gld--size-gap'
+const CSS_PROP_LANES = '--gld--lanes'
+
+const mkCssVar = (prop) => `var(${prop})`
+
+const CSS_VAR_SIZE_CELL = mkCssVar(CSS_PROP_SIZE_CELL)
+const CSS_VAR_SIZE_GAP = mkCssVar(CSS_PROP_SIZE_GAP)
+const CSS_VAR_LANES = mkCssVar(CSS_PROP_LANES)
+
+const DIRECTION = {
+  HORIZONTAL: 'horizontal',
+  VERTICAL: 'vertical'
+}
+
+const targetCellPos = Symbol()
+
+/**
+ * Creates event handlers, bound to the given instance of GridListDOM.
+ * @param {GridListDOM} gridListDOM
+ * @return {Object}
+ */
+function createBoundEventHandlers (gridListDOM) {
+  const currentDrag = Symbol()
+  return {
+
+    /**
+     * Handles drag-start on element.
+     * The target is the drag handle, not the element being dragged.
+     * @param {DragEvent} event
+     */
+    onElementDragStart: function (event) {
+
+      this.classList.add(CSS_CLASS_ITEM_DRAGGING)
+
+      event.dataTransfer.setDragImage(this, 0, 0)
+      event.dataTransfer.setData('text/html', '') // any payload is required
+      event.dataTransfer.effectAllowed = 'move'
+
+      // store item for reference when drag enters target cell
+      gridListDOM[currentDrag] = gridListDOM.gridList.items.find(e => {
+        return e.element === this
+      })
+
+      // pull target cells to front (for drag-enter consumption)
+      // NOTE: timeout is required by Chrome
+      // FIXME: find better way
+      setTimeout(() => gridListDOM.cellsToFront(), 0)
+    },
+
+    /**
+     * Handles drag-end on element.
+     * @param {DragEvent} event
+     */
+    onElementDragEnd: function (event) {
+      this.classList.remove(CSS_CLASS_ITEM_DRAGGING)
+      gridListDOM.cellsToBack()
+      gridListDOM.reconstructTargetCells()
+    },
+
+    /**
+     * Handle drag-enter on target cell.
+     * Element is moved physically to current target cell.
+     * @param {DragEvent} event
+     */
+    onTargetCellDragEnter: function (event) {
+
+      const targetCell = event.target
+
+      targetCell.classList.add(CSS_CLASS_CELL_OVER)
+
+      const { col, row } = targetCell[targetCellPos]
+      const item = gridListDOM[currentDrag] // gridList entry node being dragged
+
+      if (!item) {
+        return
+      }
+
+      gridListDOM.gridList.moveItemToPosition(item, [col, row])
+      gridListDOM.cssRelayoutItems()
+    },
+
+    /**
+     * Handle drag-leave on target cell.
+     * @param {DragEvent} event
+     */
+    onTargetCellDragLeave: function (event) {
+      event.target.classList.remove(CSS_CLASS_CELL_OVER)
+    },
+
+    /**
+     * Handle drag-over on target cell.
+     * Just consumes event and prevents default.
+     * @param {DragEvent} event
+     */
+    onTargetCellDragOver: function (event) {
+      event.dataTransfer.dropEffect = 'move'
+      event.preventDefault() // prevents feedback-image returning to the origin
+    }
+  }
+}
+
+const cssGrid = {
+
+  /**
+   * Initializes root as a grid container.
+   * @param {HTMLElement} root
+   * @param {boolean} isVertical
+   */
+  initializeRoot: function (root, isVertical) {
+
+    Object.assign(root.style, {
+      display: 'grid',
+      gridGap: CSS_VAR_SIZE_GAP
+    })
+
+    // there is no need to limit the lanes on the grid,
+    // since these are trimmed and grid size is limited by GridList.
+    root.style.setProperty(CSS_PROP_LANES, '100')
+
+    // FIXME: dumb chrome does not support auto-fill, 100 is used;
+    // this prevents using '1fr' for cell-size.
+
+    Object.assign(root.style, isVertical ? {
+      gridTemplateColumns: `repeat(${CSS_VAR_LANES}, [col] ${CSS_VAR_SIZE_CELL})`,
+      // gridTemplateRows: `repeat(auto-fill, [row] ${CSS_VAR_SIZE_CELL})`
+      gridTemplateRows: `repeat(100, [row] ${CSS_VAR_SIZE_CELL})`
+    } : {
+      // gridAutoColumns: `repeat(auto-fill, [col] ${CSS_VAR_SIZE_CELL})`,
+      gridAutoColumns: `repeat(100, [col] ${CSS_VAR_SIZE_CELL})`,
+      gridTemplateRows: `repeat(${CSS_VAR_LANES}, [row] ${CSS_VAR_SIZE_CELL})`
+    })
+  },
+
+  /**
+   * Places element on the grid by modifying CSS.
+   * @param {HTMLElement} element
+   * @param {{x: number, y: number, w: number, h: number, z: number}} position
+   */
+  placeElement: function (element, position) {
+    Object.assign(element.style, {
+      gridColumn: `col ${position.x+1} / span ${position.w}`,
+      gridRow: `row ${position.y+1} / span ${position.h}`,
+      zIndex: position.z
+    })
+  }
+}
 
 class GridListDOM {
 
+  /**
+   * @param {HTMLElement} rootElement
+   * @param {Object} options
+   */
   constructor (rootElement, options) {
 
+    Object.defineProperty(options, 'isVertical', {
+      get: function () { return this.direction === DIRECTION.VERTICAL }
+    })
+
+    /** @private */
     this.dom = {
       root: rootElement,
-      items: [],
       cells: []
     }
 
+    /** @private */
     this.options = options
 
-    this.gridList = new GridList([], {
-      direction: options.direction,
-      lanes: options.lanes
-    })
+    /** @private */
+    this.gridList = new GridList([], options)
 
-    this.targetCellEvents = {
-      dragEnter: (event) => this.onTargetCellDragEnter(event),
-      dragLeave: (event) => this.onTargetCellDragLeave(event),
-      dragOver: (event) => this.onTargetCellDragOver(event)
-    }
+    /** @private */
+    this.events = createBoundEventHandlers(this)
 
     this.updateLayout()
   }
 
-  get isVertical () {
-    return this.options.direction == 'vertical'
-  }
-
-  setRootGridCSS () {
-
-    this.dom.root.style.display = 'grid'
-
-    const lanes = this.options.lanes || '6'
-    const cs = this.options.cellSize || '100px'//'1fr'
-    const gs = this.options.gutterSize || '10px'
-
-    if (this.isVertical) {
-      Object.assign(this.dom.root.style, {
-        gridTemplateColumns: `repeat(${lanes}, [col] ${cs} [gutter] ${gs})`,
-        gridTemplateRows: `repeat(100, [row] ${cs} [gutter] ${gs})`
-      })
-    } else {
-      Object.assign(this.dom.root.style, {
-        gridTemplateColumns: `repeat(100, [col] ${cs} [gutter] ${gs})`,
-        gridTemplateRows: `repeat(${lanes}, [row] ${cs} [gutter] ${gs})`
-      })
-    }
-  }
-
-  placeElementOnGridCSS (element, x, y, w, h, z) {
-    Object.assign(element.style, {
-      gridColumn: `col ${x+1} / span gutter ${w}`,
-      gridRow: `row ${y+1} / span gutter ${h}`,
-      zIndex: z
-    })
-  }
-
+  /**
+   * @private
+   */
   updateLayout (newOptions = {}) {
     Object.assign(this.options, newOptions)
-    this.setRootGridCSS()
+    cssGrid.initializeRoot(this.dom.root, this.options.isVertical)
     this.resizeGrid()
-    this.relayoutItems()
-    this.reconstructTargetCells()
   }
 
-  /** Resizes the grid. Called whenever element is added.
+  /**
+   * Updates position of each element according to the grid setup.
    * @private
    */
-  resizeGrid () {
-    this.gridList.resizeGrid(this.options.lanes)
-  }
-
-  /** Updates position of each element according to the grid setup.
-   * @private
-   */
-  relayoutItems () {
-    this.gridList.items.forEach(({element, x, y, w, h}) => {
-      this.placeElementOnGridCSS(element, x, y, w, h, Z_IDX_ITEM)
+  cssRelayoutItems () {
+    this.gridList.items.forEach(({ element, x, y, w, h }) => {
+      cssGrid.placeElement(element, { x, y, w, h, z: Z_IDX_ITEM })
     })
   }
 
-  /** Adds new element to the grid.
-   * @param {HTMLElement} element
-   * @param {{x,y,w,h}}   size
+  /**
+   * Adds node to the grid.
+   * @param {HTMLElement} node
+   * @param {{x: number, y: number, w: number, h: number}} position
+   * @public
    */
-  addItem(element, size) {
+  appendGridElement(node, position) {
 
-    const item = Object.assign({}, size, {element})
-    this.makeDraggable(element)
-
+    const item = Object.assign({}, position, { element: node })
     this.gridList.items.push(item)
+    this.makeDraggable(node)
+    this.dom.root.appendChild(node)
     this.resizeGrid()
-    this.relayoutItems()
+  }
 
-    this.dom.root.appendChild(element)
-    this.dom.items.push(element)
+  /**
+   * Removes node from the grid.
+   * @param {HTMLElement} node
+   * @public
+   */
+  removeGridElement (node) {
 
+    const index = this.gridList.items.findIndex(e => e.element === node)
+
+    if (index > -1) {
+      this.gridList.items.splice(index, 1)
+      this.dom.root.removeChild(node)
+      this.resizeGrid()
+    }
+  }
+
+  /**
+   * Resizes the node.
+   * @param {HTMLElement} node
+   * @param {{w: number, h: number}} size
+   * @public
+   */
+  resizeGridElement (node, size) {
+
+    const item = this.gridList.items.find(e => e.element === node)
+
+    if (item) {
+      this.gridList.resizeItem(item, size)
+      this.resizeGrid()
+    }
+  }
+
+  /**
+   * Resizes the grid. Called whenever element is added.
+   * If called without arguments, size remains the same
+   * and items are repositioned and collisions are resolved.
+   * @param {number} lanes
+   * @public
+   */
+  resizeGrid (lanes) {
+
+    this.options.lanes = lanes || this.options.lanes
+    this.gridList.resizeGrid(this.options.lanes)
+
+    this.cssRelayoutItems()
     this.reconstructTargetCells()
   }
 
-  onItemDragStart (event) {
-
-    event.target.style.opacity = '0.7'
-    event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/html', '') // dummy payload
-
-    console.log('FINSDIN', event.target)
-
-    this.currentDrag = this.gridList.items.find(e => e.element === event.target)
-
-    setTimeout(() => {
-      // timeout required by Chrome
-      this.cellsToFront()
-    }, 0)
-
-  }
-
-  onItemDragEnd (event) {
-
-  }
-
+  /**
+   * Attaches dragging events to element.
+   * @param {HTMLElement} element
+   * @private
+   */
   makeDraggable (element) {
-    //
-    // element.setAttribute('draggable', 'true')
-    // element.draggable = true
-
-    // element.childNodes[0].draggable = 'true'
-    element.childNodes[0].draggable = true
-    element.childNodes[0].ondragstart = (e) => {
-      console.log('HANDLE RECEIVED', e)
-      // element.draggable = true
-      // // e.preventDefault()
-      // console.log('FIREF DEOM CHILD')
-      e.dataTransfer.setDragImage(element, 0, 0)
-      this.onItemDragStart({
-        target: element,
-        dataTransfer: e.dataTransfer
-      })
-
-      // e.preventDefault()
-
-      // return false
-      // console.log('RETURNING')
-    }
-
-    const that = this
-
-
-    function handleDragEnd (e) {
-      console.log('DRAGEND')
-      this.style.opacity = '1.0'
-      that.cellsToBack();
-    }
-
-    element.childNodes[0].ondragend = (e) => {
-      console.log('DRAGEND')
-      element.style.opacity = '1.0'
-      this.cellsToBack()
-      this.reconstructTargetCells()
-    }
-
-
-    // element.addEventListener('dragstart', (e) => {
-    //   console.log('ROOT RECEIVED')
-    //   this.onItemDragStart(e)
-    // }, false);
-    // element.addEventListener('dragend', handleDragEnd, false);
+    element.addEventListener('dragstart', this.events.onElementDragStart, true)
+    element.addEventListener('dragend', this.events.onElementDragEnd)
   }
 
-
-  /** (re-)Creates and lays out target cells.
+  /**
+   * Recreates and lays-out target cells.
    * @private
    */
   reconstructTargetCells () {
 
-    // TODO: reuse existing cells
+    // TODO: consider re-using existing cells
+
     this.dom.cells.forEach(cell => this.dom.root.removeChild(cell))
     this.dom.cells = []
 
     const lanes = this.options.lanes
     const perp = this.gridList.grid.length + 1
-    const [cols, rows] = this.isVertical ? [lanes, perp] : [perp, lanes]
+    const [cols, rows] = this.options.isVertical ? [lanes, perp] : [perp, lanes]
 
     for (let col = 0; col < cols; ++col) {
       for (let row = 0; row < rows; ++row) {
@@ -203,81 +304,48 @@ class GridListDOM {
     }
   }
 
-  /** Creates new targetCell.
+  /**
+   * Creates new target cell.
    * @return {HTMLElement}
    * @private
    */
   createTargetCell () {
     const cell = window.document.createElement('div')
-    cell.addEventListener('dragenter', this.targetCellEvents.dragEnter)
-    cell.addEventListener('dragleave', this.targetCellEvents.dragLeave)
-    cell.addEventListener('dragover', this.targetCellEvents.dragOver)
+    cell.addEventListener('dragenter', this.events.onTargetCellDragEnter)
+    cell.addEventListener('dragleave', this.events.onTargetCellDragLeave)
+    cell.addEventListener('dragover', this.events.onTargetCellDragOver)
     cell.classList.add(CSS_CLASS_CELL)
     return cell
   }
 
-  /** @private */
+  /**
+   * @private
+   */
   positionTargetCell (cell, col, row) {
-    cell.gridListCellPos = { col, row }
-    this.placeElementOnGridCSS(cell, col, row, 1, 1, Z_IDX_CELL_BACK)
+    cell[targetCellPos] = { col, row }
+    const position = { x: col, y: row, w: 1, h: 1, z: Z_IDX_CELL_BACK }
+    cssGrid.placeElement(cell, position)
   }
 
-  /** @private */
+  /**
+   * @private
+   */
   cellsToFront () {
     this.setCellLayerZIndex(Z_IDX_CELL_FRONT)
   }
 
-  /** @private */
+  /**
+   * @private
+   */
   cellsToBack () {
     this.setCellLayerZIndex(Z_IDX_CELL_BACK)
   }
 
-  /** @private */
+  /**
+   * @private
+   */
   setCellLayerZIndex (zIndex) {
     this.dom.cells.forEach(cell => cell.style.zIndex = zIndex)
-  }
-
-  /** @private */
-  onTargetCellDragEnter (event) {
-
-    event.target.classList.add(CSS_CLASS_CELL_OVER)
-
-    console.log('ENTER DRAG AREA')
-
-    const { col, row } = event.target.gridListCellPos
-    const item = this.currentDrag
-
-    if (!item) {
-      return
-    }
-
-    console.log(`MOVE FROM ${item.x}, ${item.y} to ${col}, ${row}`)
-    this.gridList.moveItemToPosition(item, [col, row])
-
-    this.relayoutItems()
-
-    // this.gridList.items.forEach(item => {
-    //   Object.assign(item.element.style, {
-    //     gridColumn: `col ${item.x+1} / span gutter ${item.w}`,
-    //     gridRow: `row ${item.y+1} / span gutter ${item.h}`,
-    //     zIndex: Z_IDX_ITEM
-    //   })
-    // })
-  }
-
-  /** @private */
-  onTargetCellDragOver (event) {
-
-    // prevents feedback-image returning to the origin
-    if (event.preventDefault) {
-      event.preventDefault()
-    }
-    event.dataTransfer.dropEffect = 'move'
-  }
-
-  /** @private */
-  onTargetCellDragLeave (event) {
-    event.target.classList.remove(CSS_CLASS_CELL_OVER)
   }
 }
 

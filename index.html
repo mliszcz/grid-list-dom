@@ -21,13 +21,6 @@
 
       [draggable] {
         user-select: none;
-      }
-
-      .grid {
-        grid-gap: 0px;
-      }
-
-      .grid-item-handle {
         cursor: pointer;
       }
 
@@ -36,7 +29,16 @@
       }
 
       .gld--grid-cell.gld--grid-cell-over {
-        border: 2px dashed #0F0;
+        border: 2px dashed green;
+      }
+
+      .gld--grid-item-dragging {
+        opacity: 0.2;
+      }
+
+      .grid {
+        --gld--size-cell: 50px;
+        --gld--size-gap: 5px;
       }
 
     </style>
@@ -44,7 +46,7 @@
   </head>
 
   <body>
-    <div class="grid" id="grid">
+    <div class="grid" id="grid"></div>
 
     <script type="text/javascript">
       (function (window) {
@@ -53,7 +55,7 @@
         const document = window.document
         const gridElement = document.getElementById('grid')
         const grid = new window.GridListDOM(gridElement, {
-          // direction: 'horizontal',
+          // direction: 'horizontal', // FIXME not working
           direction: 'vertical',
           lanes: 6
         })
@@ -61,19 +63,36 @@
         const createItem = (content) => {
           const element = document.createElement('div')
           element.classList.add('grid-item')
-          // element.textContent = content
           const handle = document.createElement('div')
-          handle.classList.add('grid-item-handle')
           handle.textContent = content
+          element.draggable = true
           handle.style.backgroundColor = '#8F8'
           element.appendChild(handle)
           element.appendChild(document.createTextNode(content))
           return element
         }
 
-        grid.addItem(createItem('item1'), {w: 2, h: 3, x: 1, y: 0})
-        grid.addItem(createItem('item2'), {w: 1, h: 2, x: 0, y: 0})
-        grid.addItem(createItem('item3'), {w: 4, h: 2, x: 0, y: 3})
+        const item = [1,2,3,4].map(i => createItem(`item${i}`))
+
+        grid.appendGridElement(item[0], {w: 2, h: 3, x: 1, y: 0})
+        grid.appendGridElement(item[1], {w: 1, h: 2, x: 0, y: 0})
+        grid.appendGridElement(item[2], {w: 4, h: 2, x: 0, y: 3})
+
+        const STEP = 2000
+
+        setTimeout(() => {
+          grid.appendGridElement(item[3], {w: 4, h: 2, x: 1, y: 3})
+          setTimeout(() => {
+            grid.removeGridElement(item[2])
+            setTimeout(() => {
+              grid.resizeGridElement(item[3], {h: 5, w: 5})
+              setTimeout(() => {
+                grid.resizeGrid(12)
+              }, STEP)
+            }, STEP)
+          }, STEP)
+        }, STEP)
+
       })(window)
     </script>
   </body>
