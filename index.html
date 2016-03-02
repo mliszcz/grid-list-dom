@@ -11,7 +11,22 @@
 
       html, body, .grid {
         width: 100%;
-        height: 100%;
+        /*height: 100%;*/
+        /*display: flex;*/
+      }
+
+      html, body {
+        /*display: flex;
+        flex: 1;
+        flex-direction: row;*/
+      }
+
+      .grid {
+        /*height: 100%;*/
+        /*width: 50%;*/
+        /*flex: 0 0 auto;*/
+        /*flex: content;*/
+        /*flex: 1 1 auto;*/
       }
 
       .grid-item {
@@ -37,8 +52,10 @@
       }
 
       .grid {
-        --gld--size-cell: 50px;
-        --gld--size-gap: 5px;
+        display: grid;
+        grid-auto-columns: 200px;
+        grid-auto-rows: 200px;
+        grid-gap: 20px;
       }
 
     </style>
@@ -55,10 +72,25 @@
         const document = window.document
         const gridElement = document.getElementById('grid')
         const grid = new window.GridListDOM(gridElement, {
-          // direction: 'horizontal', // FIXME not working
+          // direction: 'horizontal',
           direction: 'vertical',
           lanes: 6
         })
+
+        const DIM = 150
+
+
+
+        window.addEventListener('resize', () => {
+
+          const width = gridElement.clientWidth
+          const lanes = parseInt(width / DIM, 10)
+          grid.resizeGrid(lanes)
+
+          setTimeout( () => {
+            console.log(`RESIZE: ${width}px ${lanes}`)
+          }, 100)
+        }, true);
 
         const createItem = (content) => {
           const element = document.createElement('div')
@@ -80,18 +112,18 @@
 
         const STEP = 2000
 
-        setTimeout(() => {
-          grid.appendGridElement(item[3], {w: 4, h: 2, x: 1, y: 3})
-          setTimeout(() => {
-            grid.removeGridElement(item[2])
-            setTimeout(() => {
-              grid.resizeGridElement(item[3], {h: 5, w: 5})
-              setTimeout(() => {
-                grid.resizeGrid(12)
-              }, STEP)
-            }, STEP)
-          }, STEP)
-        }, STEP)
+        // setTimeout(() => {
+        //   grid.appendGridElement(item[3], {w: 4, h: 2, x: 1, y: 3})
+        //   setTimeout(() => {
+        //     grid.removeGridElement(item[2])
+        //     setTimeout(() => {
+        //       grid.resizeGridElement(item[3], {h: 5, w: 5})
+        //       setTimeout(() => {
+        //         grid.resizeGrid(12)
+        //       }, STEP)
+        //     }, STEP)
+        //   }, STEP)
+        // }, STEP)
 
       })(window)
     </script>

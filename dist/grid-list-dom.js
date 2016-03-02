@@ -9,16 +9,6 @@ const CSS_CLASS_CELL = 'gld--grid-cell'
 const CSS_CLASS_CELL_OVER = 'gld--grid-cell-over'
 const CSS_CLASS_ITEM_DRAGGING = 'gld--grid-item-dragging'
 
-const CSS_PROP_SIZE_CELL = '--gld--size-cell'
-const CSS_PROP_SIZE_GAP = '--gld--size-gap'
-const CSS_PROP_LANES = '--gld--lanes'
-
-const mkCssVar = (prop) => `var(${prop})`
-
-const CSS_VAR_SIZE_CELL = mkCssVar(CSS_PROP_SIZE_CELL)
-const CSS_VAR_SIZE_GAP = mkCssVar(CSS_PROP_SIZE_GAP)
-const CSS_VAR_LANES = mkCssVar(CSS_PROP_LANES)
-
 const DIRECTION = {
   HORIZONTAL: 'horizontal',
   VERTICAL: 'vertical'
@@ -56,7 +46,7 @@ function createBoundEventHandlers (gridListDOM) {
       // pull target cells to front (for drag-enter consumption)
       // NOTE: timeout is required by Chrome
       // FIXME: find better way
-      setTimeout(() => gridListDOM.cellsToFront(), 0)
+      setTimeout(() => cellLayerToFront(gridListDOM.dom.cells), 0)
     },
 
     /**
@@ -65,7 +55,7 @@ function createBoundEventHandlers (gridListDOM) {
      */
     onElementDragEnd: function (event) {
       this.classList.remove(CSS_CLASS_ITEM_DRAGGING)
-      gridListDOM.cellsToBack()
+      cellLayerToBack(gridListDOM.dom.cells)
       gridListDOM.reconstructTargetCells()
     },
 
@@ -111,50 +101,64 @@ function createBoundEventHandlers (gridListDOM) {
   }
 }
 
-const cssGrid = {
+/**
+ * Places element on the grid by modifying CSS.
+ * @param {HTMLElement} element
+ * @param {{x: number, y: number, w: number, h: number, z: number}} position
+ */
+function cssPlaceElement (element, position) {
+  Object.assign(element.style, {
+    gridColumn: `${position.x+1} / span ${position.w}`,
+    gridRow: `${position.y+1} / span ${position.h}`,
+    zIndex: position.z
+  })
+}
 
-  /**
-   * Initializes root as a grid container.
-   * @param {HTMLElement} root
-   * @param {boolean} isVertical
-   */
-  initializeRoot: function (root, isVertical) {
+/**
+ * Creates new target cell.
+ * @param {Object} events
+ * @return {HTMLElement}
+ */
+function createTargetCell (events) {
+  const cell = window.document.createElement('div')
+  cell.addEventListener('dragenter', events.onTargetCellDragEnter)
+  cell.addEventListener('dragleave', events.onTargetCellDragLeave)
+  cell.addEventListener('dragover', events.onTargetCellDragOver)
+  cell.classList.add(CSS_CLASS_CELL)
+  return cell
+}
 
-    Object.assign(root.style, {
-      display: 'grid',
-      gridGap: CSS_VAR_SIZE_GAP
-    })
+/**
+ * Updates position of target cell.
+ * @param {HTMLElement} cell
+ * @param {number} col
+ * @param {number} col
+ */
+function positionTargetCell (cell, col, row) {
+  cell[targetCellPos] = { col, row }
+  cssPlaceElement(cell, { x: col, y: row, w: 1, h: 1, z: Z_IDX_CELL_BACK })
+}
 
-    // there is no need to limit the lanes on the grid,
-    // since these are trimmed and grid size is limited by GridList.
-    root.style.setProperty(CSS_PROP_LANES, '100')
+/**
+ * @param {Array<HTMLElement>} cells
+ */
+function cellLayerToFront (cells) {
+  cellLayerSetZIndex(cells, Z_IDX_CELL_FRONT)
+}
 
-    // FIXME: dumb chrome does not support auto-fill, 100 is used;
-    // this prevents using '1fr' for cell-size.
+/**
+ * @param {Array<HTMLElement>} cells
+ */
+function cellLayerToBack (cells) {
+  cellLayerSetZIndex(cells, Z_IDX_CELL_BACK)
+}
 
-    Object.assign(root.style, isVertical ? {
-      gridTemplateColumns: `repeat(${CSS_VAR_LANES}, [col] ${CSS_VAR_SIZE_CELL})`,
-      // gridTemplateRows: `repeat(auto-fill, [row] ${CSS_VAR_SIZE_CELL})`
-      gridTemplateRows: `repeat(100, [row] ${CSS_VAR_SIZE_CELL})`
-    } : {
-      // gridAutoColumns: `repeat(auto-fill, [col] ${CSS_VAR_SIZE_CELL})`,
-      gridAutoColumns: `repeat(100, [col] ${CSS_VAR_SIZE_CELL})`,
-      gridTemplateRows: `repeat(${CSS_VAR_LANES}, [row] ${CSS_VAR_SIZE_CELL})`
-    })
-  },
-
-  /**
-   * Places element on the grid by modifying CSS.
-   * @param {HTMLElement} element
-   * @param {{x: number, y: number, w: number, h: number, z: number}} position
-   */
-  placeElement: function (element, position) {
-    Object.assign(element.style, {
-      gridColumn: `col ${position.x+1} / span ${position.w}`,
-      gridRow: `row ${position.y+1} / span ${position.h}`,
-      zIndex: position.z
-    })
-  }
+/**
+ * @param {Array<HTMLElement>} cells
+ * @param {number} zIndex
+ */
+function cellLayerSetZIndex (cells, zIndex) {
+  cells.forEach(cell => cell.style.zIndex = zIndex)
 }
 
 class GridListDOM {
@@ -184,15 +188,6 @@ class GridListDOM {
     /** @private */
     this.events = createBoundEventHandlers(this)
 
-    this.updateLayout()
-  }
-
-  /**
-   * @private
-   */
-  updateLayout (newOptions = {}) {
-    Object.assign(this.options, newOptions)
-    cssGrid.initializeRoot(this.dom.root, this.options.isVertical)
     this.resizeGrid()
   }
 
@@ -202,7 +197,7 @@ class GridListDOM {
    */
   cssRelayoutItems () {
     this.gridList.items.forEach(({ element, x, y, w, h }) => {
-      cssGrid.placeElement(element, { x, y, w, h, z: Z_IDX_ITEM })
+      cssPlaceElement(element, { x, y, w, h, z: Z_IDX_ITEM })
     })
   }
 
@@ -216,8 +211,11 @@ class GridListDOM {
 
     const item = Object.assign({}, position, { element: node })
     this.gridList.items.push(item)
-    this.makeDraggable(node)
+
+    node.addEventListener('dragstart', this.events.onElementDragStart, true)
+    node.addEventListener('dragend', this.events.onElementDragEnd)
     this.dom.root.appendChild(node)
+
     this.resizeGrid()
   }
 
@@ -270,22 +268,10 @@ class GridListDOM {
   }
 
   /**
-   * Attaches dragging events to element.
-   * @param {HTMLElement} element
-   * @private
-   */
-  makeDraggable (element) {
-    element.addEventListener('dragstart', this.events.onElementDragStart, true)
-    element.addEventListener('dragend', this.events.onElementDragEnd)
-  }
-
-  /**
    * Recreates and lays-out target cells.
    * @private
    */
   reconstructTargetCells () {
-
-    // TODO: consider re-using existing cells
 
     this.dom.cells.forEach(cell => this.dom.root.removeChild(cell))
     this.dom.cells = []
@@ -296,56 +282,12 @@ class GridListDOM {
 
     for (let col = 0; col < cols; ++col) {
       for (let row = 0; row < rows; ++row) {
-        const cell = this.createTargetCell()
-        this.positionTargetCell(cell, col, row)
+        const cell = createTargetCell(this.events)
+        positionTargetCell(cell, col, row)
         this.dom.root.appendChild(cell)
         this.dom.cells.push(cell)
       }
     }
-  }
-
-  /**
-   * Creates new target cell.
-   * @return {HTMLElement}
-   * @private
-   */
-  createTargetCell () {
-    const cell = window.document.createElement('div')
-    cell.addEventListener('dragenter', this.events.onTargetCellDragEnter)
-    cell.addEventListener('dragleave', this.events.onTargetCellDragLeave)
-    cell.addEventListener('dragover', this.events.onTargetCellDragOver)
-    cell.classList.add(CSS_CLASS_CELL)
-    return cell
-  }
-
-  /**
-   * @private
-   */
-  positionTargetCell (cell, col, row) {
-    cell[targetCellPos] = { col, row }
-    const position = { x: col, y: row, w: 1, h: 1, z: Z_IDX_CELL_BACK }
-    cssGrid.placeElement(cell, position)
-  }
-
-  /**
-   * @private
-   */
-  cellsToFront () {
-    this.setCellLayerZIndex(Z_IDX_CELL_FRONT)
-  }
-
-  /**
-   * @private
-   */
-  cellsToBack () {
-    this.setCellLayerZIndex(Z_IDX_CELL_BACK)
-  }
-
-  /**
-   * @private
-   */
-  setCellLayerZIndex (zIndex) {
-    this.dom.cells.forEach(cell => cell.style.zIndex = zIndex)
   }
 }
 
