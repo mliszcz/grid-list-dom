@@ -9,24 +9,15 @@
 
     <style>
 
-      html, body, .grid {
-        width: 100%;
-        /*height: 100%;*/
-        /*display: flex;*/
-      }
-
       html, body {
-        /*display: flex;
+        display: flex;
         flex: 1;
-        flex-direction: row;*/
+        /*flex-direction: row;*/
+        flex-direction: column;
       }
 
       .grid {
-        /*height: 100%;*/
-        /*width: 50%;*/
-        /*flex: 0 0 auto;*/
-        /*flex: content;*/
-        /*flex: 1 1 auto;*/
+        flex: 1;
       }
 
       .grid-item {
@@ -34,9 +25,20 @@
         background-color: #ccc;
       }
 
+      .grid-item > div {
+        background-color: #8F8;
+      }
+
       [draggable] {
         user-select: none;
         cursor: pointer;
+      }
+
+      .grid {
+        display: grid;
+        grid-auto-columns: 200px;
+        grid-auto-rows: 200px;
+        grid-gap: 20px;
       }
 
       .gld--grid-cell {
@@ -51,18 +53,12 @@
         opacity: 0.2;
       }
 
-      .grid {
-        display: grid;
-        grid-auto-columns: 200px;
-        grid-auto-rows: 200px;
-        grid-gap: 20px;
-      }
-
     </style>
 
   </head>
 
   <body>
+
     <div class="grid" id="grid"></div>
 
     <script type="text/javascript">
@@ -70,6 +66,7 @@
         'use strict'
 
         const document = window.document
+
         const gridElement = document.getElementById('grid')
         const grid = new window.GridListDOM(gridElement, {
           // direction: 'horizontal',
@@ -77,30 +74,22 @@
           lanes: 6
         })
 
-        const DIM = 150
-
-
-
-        window.addEventListener('resize', () => {
-
-          const width = gridElement.clientWidth
-          const lanes = parseInt(width / DIM, 10)
-          grid.resizeGrid(lanes)
-
-          setTimeout( () => {
-            console.log(`RESIZE: ${width}px ${lanes}`)
-          }, 100)
-        }, true);
+        window.addEventListener('resize', grid.onGridContainerResize)
+        window.addEventListener('DOMContentLoaded', grid.onGridContainerResize)
 
         const createItem = (content) => {
-          const element = document.createElement('div')
-          element.classList.add('grid-item')
+
           const handle = document.createElement('div')
           handle.textContent = content
-          element.draggable = true
-          handle.style.backgroundColor = '#8F8'
+
+          const element = document.createElement('div')
+          element.classList.add('grid-item')
           element.appendChild(handle)
           element.appendChild(document.createTextNode(content))
+
+          // handle.draggable = true
+          element.draggable = true
+
           return element
         }
 
@@ -110,20 +99,22 @@
         grid.appendGridElement(item[1], {w: 1, h: 2, x: 0, y: 0})
         grid.appendGridElement(item[2], {w: 4, h: 2, x: 0, y: 3})
 
-        const STEP = 2000
+        // uncomment for DEMO:
 
-        // setTimeout(() => {
-        //   grid.appendGridElement(item[3], {w: 4, h: 2, x: 1, y: 3})
+        // const STEP = 2000
+        //
+        // ;(function invoker ([fn, ...fns]) {
         //   setTimeout(() => {
-        //     grid.removeGridElement(item[2])
-        //     setTimeout(() => {
-        //       grid.resizeGridElement(item[3], {h: 5, w: 5})
-        //       setTimeout(() => {
-        //         grid.resizeGrid(12)
-        //       }, STEP)
-        //     }, STEP)
+        //     fn.apply({})
+        //     fns.length == 0 || invoker(fns)
         //   }, STEP)
-        // }, STEP)
+        // })([
+        //   () => grid.appendGridElement(item[3], {w: 4, h: 2, x: 1, y: 3}),
+        //   () => grid.removeGridElement(item[2]),
+        //   () => grid.resizeGridElement(item[3], {h: 5, w: 5}),
+        //   // () => grid.resizeGrid(12)
+        //   () => null
+        // ])
 
       })(window)
     </script>

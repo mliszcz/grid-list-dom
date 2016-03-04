@@ -1,13 +1,17 @@
 (function (window) {
 'use strict'
 
-const Z_IDX_CELL_FRONT = 30
-const Z_IDX_ITEM = 20
-const Z_IDX_CELL_BACK = 10
+const Z_IDX = {
+  CELL_FRONT: 30,
+  ITEM: 20,
+  CELL_BACK: 10
+}
 
-const CSS_CLASS_CELL = 'gld--grid-cell'
-const CSS_CLASS_CELL_OVER = 'gld--grid-cell-over'
-const CSS_CLASS_ITEM_DRAGGING = 'gld--grid-item-dragging'
+const CSS_CLASS = {
+  CELL: 'gld--grid-cell',
+  CELL_OVER: 'gld--grid-cell-over',
+  ITEM_DRAGGING: 'gld--grid-item-dragging',
+}
 
 const DIRECTION = {
   HORIZONTAL: 'horizontal',
@@ -15,6 +19,7 @@ const DIRECTION = {
 }
 
 const targetCellPos = Symbol()
+const currentDrag = Symbol()
 
 /**
  * Creates event handlers, bound to the given instance of GridListDOM.
@@ -22,7 +27,6 @@ const targetCellPos = Symbol()
  * @return {Object}
  */
 function createBoundEventHandlers (gridListDOM) {
-  const currentDrag = Symbol()
   return {
 
     /**
@@ -32,7 +36,7 @@ function createBoundEventHandlers (gridListDOM) {
      */
     onElementDragStart: function (event) {
 
-      this.classList.add(CSS_CLASS_ITEM_DRAGGING)
+      this.classList.add(CSS_CLASS.ITEM_DRAGGING)
 
       event.dataTransfer.setDragImage(this, 0, 0)
       event.dataTransfer.setData('text/html', '') // any payload is required
@@ -54,7 +58,7 @@ function createBoundEventHandlers (gridListDOM) {
      * @param {DragEvent} event
      */
     onElementDragEnd: function (event) {
-      this.classList.remove(CSS_CLASS_ITEM_DRAGGING)
+      this.classList.remove(CSS_CLASS.ITEM_DRAGGING)
       cellLayerToBack(gridListDOM.dom.cells)
       gridListDOM.reconstructTargetCells()
     },
@@ -68,7 +72,7 @@ function createBoundEventHandlers (gridListDOM) {
 
       const targetCell = event.target
 
-      targetCell.classList.add(CSS_CLASS_CELL_OVER)
+      targetCell.classList.add(CSS_CLASS.CELL_OVER)
 
       const { col, row } = targetCell[targetCellPos]
       const item = gridListDOM[currentDrag] // gridList entry node being dragged
@@ -86,7 +90,7 @@ function createBoundEventHandlers (gridListDOM) {
      * @param {DragEvent} event
      */
     onTargetCellDragLeave: function (event) {
-      event.target.classList.remove(CSS_CLASS_CELL_OVER)
+      event.target.classList.remove(CSS_CLASS.CELL_OVER)
     },
 
     /**
@@ -97,6 +101,34 @@ function createBoundEventHandlers (gridListDOM) {
     onTargetCellDragOver: function (event) {
       event.dataTransfer.dropEffect = 'move'
       event.preventDefault() // prevents feedback-image returning to the origin
+    },
+
+    /**
+     * Handle resize of grid container. Lanes are recalculated dynamically,
+     * assuming that cell size should not change.
+     * This handler is not used. Instead it is exposed to the user as a public
+     * property.
+     * @param {Event} event
+     */
+    onGridContainerResize: function (event) {
+
+      const node = gridListDOM.dom.root
+      const style = window.getComputedStyle(node)
+
+      const isVertical = gridListDOM.options.isVertical
+
+      const cellSize = (isVertical ? [
+        style['grid-template-columns'],
+        style['grid-column-gap']
+      ] : [
+        style['grid-template-rows'],
+        style['grid-row-gap']
+      ]).map(parseFloat).reduce((x,y) => x + y)
+
+      const totalSize = isVertical ? node.clientWidth : node.clientHeight
+      const lanes = parseInt(totalSize / cellSize, 10)
+
+      gridListDOM.resizeGrid(lanes)
     }
   }
 }
@@ -124,7 +156,7 @@ function createTargetCell (events) {
   cell.addEventListener('dragenter', events.onTargetCellDragEnter)
   cell.addEventListener('dragleave', events.onTargetCellDragLeave)
   cell.addEventListener('dragover', events.onTargetCellDragOver)
-  cell.classList.add(CSS_CLASS_CELL)
+  cell.classList.add(CSS_CLASS.CELL)
   return cell
 }
 
@@ -136,21 +168,21 @@ function createTargetCell (events) {
  */
 function positionTargetCell (cell, col, row) {
   cell[targetCellPos] = { col, row }
-  cssPlaceElement(cell, { x: col, y: row, w: 1, h: 1, z: Z_IDX_CELL_BACK })
+  cssPlaceElement(cell, { x: col, y: row, w: 1, h: 1, z: Z_IDX.CELL_BACK })
 }
 
 /**
  * @param {Array<HTMLElement>} cells
  */
 function cellLayerToFront (cells) {
-  cellLayerSetZIndex(cells, Z_IDX_CELL_FRONT)
+  cellLayerSetZIndex(cells, Z_IDX.CELL_FRONT)
 }
 
 /**
  * @param {Array<HTMLElement>} cells
  */
 function cellLayerToBack (cells) {
-  cellLayerSetZIndex(cells, Z_IDX_CELL_BACK)
+  cellLayerSetZIndex(cells, Z_IDX.CELL_BACK)
 }
 
 /**
@@ -188,6 +220,9 @@ class GridListDOM {
     /** @private */
     this.events = createBoundEventHandlers(this)
 
+    /** @public */
+    this.onGridContainerResize = this.events.onGridContainerResize
+
     this.resizeGrid()
   }
 
@@ -197,7 +232,7 @@ class GridListDOM {
    */
   cssRelayoutItems () {
     this.gridList.items.forEach(({ element, x, y, w, h }) => {
-      cssPlaceElement(element, { x, y, w, h, z: Z_IDX_ITEM })
+      cssPlaceElement(element, { x, y, w, h, z: Z_IDX.ITEM })
     })
   }
 
