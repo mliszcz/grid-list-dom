@@ -6,6 +6,15 @@ jQuery plugin (`$.fn.gridList`), but better:
 * based on [CSS Grid Layout](https://www.w3.org/TR/css-grid-1/)
 * uses native HTML Drag and Drop API
 
+# Demo
+
+Requires ES2015-compatible browser and support for Grid Layout.
+
+* Firefox: enable `layout.css.grid.enabled`
+* Chrome: enable `experimental web platform features`
+
+[Demo link](https://rawgit.com/mliszcz/grid-list-dom/master/index.html)
+
 # Examples
 
 ```html
@@ -34,10 +43,45 @@ npm install --save grid-list-dom
 
 And include in your project:
 
-```
+```html
 <script type="text/javascript" src="node_modules/grid-list/src/gridList.js"></script>
 <script type="text/javascript" src="node_modules/grid-list-dom/dist/grid-list-dom.js"></script>
 ```
+
+# Configuration
+
+GridListDOM constructor takes two arguments:
+* `rootElement: HTMLElement` - the element which will host the grid;
+* `options: Object` - options passed directly to the `GridList`.
+
+Two important options are:
+* `direction`: `'vertical'` or `horizontal` - indicates direction in which
+  the grid grows;
+* `lanes`: fixed number of rows / columns (depends on direction).
+
+You are responsible for:
+* styling the grid host with Grid Layout properties, e.g.:
+
+  ```css
+  .grid {
+    display: grid;
+    grid-auto-columns: 200px;
+    grid-auto-rows: 200px;
+    grid-gap: 20px;
+  }
+  ```
+* styling grid's parents, so it may grow in selected direction (see the Demo
+  source for an example);
+* adding `draggable` attribute to each element (or it's child) that is added
+  to the grid. Draggable elements will become *handles*. If you want to disable
+  dragging, remove this attribute.
+
+GridListDOM exposes a single property, `onGridContainerResize`. It is a
+callback that you may attach to the window's `resize` event, in order to
+resize the grid dynamically. Grid will then fill maximum available space
+(lanes will be adjusted).
+
+For list of available methods, see the [API section](#api).
 
 # API
 
