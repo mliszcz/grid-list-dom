@@ -24,7 +24,24 @@ const item1 = document.createElement('div')
 grid.appendGridElement(item1, {w: 2, h: 3, x: 1, y: 0})
 ```
 
+# Installation
+
+Install via npm:
+
+```
+npm install --save grid-list-dom
+```
+
+And include in your project:
+
+```
+<script type="text/javascript" src="node_modules/grid-list/src/gridList.js"></script>
+<script type="text/javascript" src="node_modules/grid-list-dom/dist/grid-list-dom.js"></script>
+```
+
 # API
+
+## `GridListDOM`
 
 ```javascript
 /**
@@ -34,31 +51,50 @@ grid.appendGridElement(item1, {w: 2, h: 3, x: 1, y: 0})
 constructor (rootElement, options)
 ```
 
+## `appendGridElement`
+
 ```javascript
 /**
  * Adds node to the grid.
- * @public
  * @param {HTMLElement} node
  * @param {{x: number, y: number, w: number, h: number}} position
+ * @public
  */
 appendGridElement(node, position)
 ```
 
+## `removeGridElement`
+
 ```javascript
 /**
  * Removes node from the grid.
- * @public
  * @param {HTMLElement} node
+ * @public
  */
 removeGridElement (node)
 ```
 
+## `resizeGridElement`
+
 ```javascript
 /**
  * Resizes the node.
- * @public
  * @param {HTMLElement} node
  * @param {{w: number, h: number}} size
+ * @public
  */
 resizeGridElement (node, size)
+```
+
+## `resizeGrid`
+
+```javascript
+/**
+ * Resizes the grid. Called whenever element is added.
+ * If called without arguments, size remains the same
+ * and items are repositioned and collisions are resolved.
+ * @param {number} lanes
+ * @public
+ */
+resizeGrid (lanes)
 ```
