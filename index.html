@@ -10,15 +10,8 @@
 
     <style>
 
-      html, body {
-        display: flex;
-        flex: 1;
-        /*flex-direction: row;*/
-        flex-direction: column;
-      }
-
       .grid {
-        flex: 1;
+        height: 100vh;
       }
 
       .grid-item {
@@ -51,7 +44,7 @@
       }
 
       .gld--grid-item-dragging {
-        opacity: 0.2;
+        opacity: 0.8;
       }
 
     </style>
@@ -70,8 +63,8 @@
 
         const gridElement = document.getElementById('grid')
         const grid = new window.GridListDOM(gridElement, {
-          // direction: 'horizontal',
-          direction: 'vertical',
+          direction: 'horizontal',
+          // direction: 'vertical',
           lanes: 6
         })
 
