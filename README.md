@@ -70,8 +70,11 @@ You are responsible for:
     grid-gap: 20px;
   }
   ```
+  **Implicit grid is required for `onGridContainerResize` callback to work**;
+
 * styling grid's parents, so it may grow in selected direction (see the Demo
   source for an example);
+
 * adding `draggable` attribute to each element (or it's child) that is added
   to the grid. Draggable elements will become *handles*. If you want to disable
   dragging, remove this attribute.

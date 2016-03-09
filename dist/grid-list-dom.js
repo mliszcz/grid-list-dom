@@ -118,10 +118,10 @@ function createBoundEventHandlers (gridListDOM) {
       const isVertical = gridListDOM.options.isVertical
 
       const cellSize = (isVertical ? [
-        style['grid-template-columns'],
+        style['grid-auto-columns'],
         style['grid-column-gap']
       ] : [
-        style['grid-template-rows'],
+        style['grid-auto-rows'],
         style['grid-row-gap']
       ]).map(parseFloat).reduce((x,y) => x + y)
 
