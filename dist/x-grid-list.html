@@ -1,0 +1,59 @@
+<html>
+
+  <script type="text/javascript" src="../../grid-list/src/gridList.js"></script>
+  <script type="text/javascript" src="../../grid-list-dom/dist/grid-list-dom.js"></script>
+
+  <script>
+  (function (window) {
+    'use strict'
+
+    const document = window.document
+    const GridListDOM = window.GridListDOM
+
+    const isDir = dir => ['vertical', 'horizontal'].includes(dir)
+
+    const attributes = {
+      direction: (dir) => isDir(dir) ? dir : 'vertical',
+      lanes: (lanes) => parseInt(lanes, 10) || 5
+    }
+
+    const getOptionsFromAttributes = (grid) => Object.keys(attributes).reduce(
+      (acc, e) => (acc[e] = attributes[e](grid.getAttribute(e)), acc),
+      {})
+
+    class HTMLGridListElement extends window.HTMLDivElement {
+
+      /** @private */
+      createdCallback () {
+        this.grid = new GridListDOM(this, getOptionsFromAttributes(this))
+      }
+
+      /** @private */
+      attributeChangedCallback () {
+        this.grid.reinitializeGrid(getOptionsFromAttributes(this))
+      }
+
+    }
+
+    // TODO: refactor GridListDOM into a mixin and mix into this component
+
+    ;([
+      'appendGridElement',
+      'removeGridElement',
+      'resizeGridElement',
+      'reinitializeGrid',
+      'resizeGrid',
+    ]).forEach(fn => {
+      HTMLGridListElement.prototype[fn] = function (...args) {
+        return GridListDOM.prototype[fn].apply(this.grid, args)
+      }
+    })
+
+    const constructor = document.registerElement('x-grid-list',
+                                                 HTMLGridListElement)
+    window[constructor.name] = constructor
+
+  })(window)
+  </script>
+
+</html>

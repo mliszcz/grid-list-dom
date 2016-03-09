@@ -5,6 +5,7 @@ jQuery plugin (`$.fn.gridList`), but better:
 * no jQuery madness
 * based on [CSS Grid Layout](https://www.w3.org/TR/css-grid-1/)
 * uses native HTML Drag and Drop API
+* available as a Web Component
 
 # Demo
 
@@ -86,6 +87,29 @@ resize the grid dynamically. Grid will then fill maximum available space
 
 For list of available methods, see the [API section](#api).
 
+# HTMLGridListElement
+
+`HTMLGridListElement` is a self-contained Web Component that hosts the grid.
+Drop it onto your page and configure via attributes (only `direction` and
+`lanes` can be controlled).
+
+It is registered under the `x-grid-list` name.
+
+Underlying `GridListDOM` API is exposed directly on the `HTMLGridListElement`
+prototype.
+
+Example:
+
+```html
+<x-grid-list direction="horizontal" lanes="5"></x-grid-list>
+```
+
+```javascript
+const grid = document.querySelector('x-grid-list')
+grid.setAttribute('lanes', '7')
+grid.appendGridElement(...)
+```
+
 # API
 
 ## `GridListDOM`
@@ -96,6 +120,17 @@ For list of available methods, see the [API section](#api).
  * @param {Object} options
  */
 constructor (rootElement, options)
+```
+
+## `reinitializeGrid`
+
+```javascript
+/**
+ * Reconfigures grid with new options.
+ * @param {Object} newOptions
+ * @public
+ */
+reinitializeGrid (newOptions = {})
 ```
 
 ## `appendGridElement`

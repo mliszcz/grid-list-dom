@@ -237,6 +237,17 @@ class GridListDOM {
   }
 
   /**
+   * Reconfigures grid with new options.
+   * @param {Object} newOptions
+   * @public
+   */
+  reinitializeGrid (newOptions = {}) {
+    Object.assign(this.options, newOptions)
+    this.gridList = new GridList(this.gridList.items, this.options)
+    this.resizeGrid()
+  }
+
+  /**
    * Adds node to the grid.
    * @param {HTMLElement} node
    * @param {{x: number, y: number, w: number, h: number}} position
