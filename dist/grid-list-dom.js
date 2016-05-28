@@ -307,7 +307,16 @@ class GridListDOM {
   resizeGrid (lanes) {
 
     this.options.lanes = lanes || this.options.lanes
+
+    const oldLayout = new Map(this.gridList.items.map(item => {
+      return [item, {x: item.x, y: item.y}]
+    }))
+
     this.gridList.resizeGrid(this.options.lanes)
+
+    oldLayout.forEach(({x, y}, item) => {
+      this.gridList.moveItemToPosition(item, [x, y])
+    })
 
     this.cssRelayoutItems()
     this.reconstructTargetCells()
